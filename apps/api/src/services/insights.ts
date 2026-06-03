@@ -11,6 +11,8 @@ type ProblemAttemptRecord = {
   notes: string | null;
 };
 
+// Turn raw solve history into the numbers and lists
+// shown on the analytics dashboard.
 export function buildAnalytics(records: ProblemAttemptRecord[]) {
   const weeklySolves = buildWeeklySolves(records);
   const topicPerformance = buildTopicPerformance(records);
@@ -38,11 +40,11 @@ export function buildAnalytics(records: ProblemAttemptRecord[]) {
   };
 }
 
+// Gather the main signals the recommendation system needs,
+// like weak topics, recent practice, and confidence.
 export function buildRecommendationContext(records: ProblemAttemptRecord[]) {
   const topicPerformance = buildTopicPerformance(records);
-  const topicPerformanceMap = new Map(
-    topicPerformance.map((entry) => [entry.topic, entry])
-  );
+  const topicPerformanceMap = new Map(topicPerformance.map((entry) => [entry.topic, entry]));
   const lastPracticedByTopic = new Map<string, number>();
 
   records.forEach((record) => {
@@ -58,12 +60,11 @@ export function buildRecommendationContext(records: ProblemAttemptRecord[]) {
 
   const solvedTitles = new Set(records.map((record) => record.title.toLowerCase()));
   const reviewTopics = new Set(
-    records
-      .filter((record) => record.needed_hints || record.attempts >= 3 || record.confidence_score <= 2)
-      .flatMap((record) => record.topic_tags)
+    records.filter(struggledWithProblem).flatMap((record) => record.topic_tags)
   );
-  const averageConfidence =
-    records.reduce((sum, record) => sum + record.confidence_score, 0) / Math.max(records.length, 1);
+  const averageConfidence = average(
+    records.map((record) => record.confidence_score)
+  );
 
   return {
     topicPerformanceMap,
@@ -87,6 +88,7 @@ function buildWeeklySolves(records: ProblemAttemptRecord[]) {
     .map(([week, solved]) => ({ week, solved }));
 }
 
+// Group problems by topic and calculate summary stats for each one.
 function buildTopicPerformance(records: ProblemAttemptRecord[]) {
   const topicMap = new Map<
     string,
@@ -127,9 +129,9 @@ function buildTopicPerformance(records: ProblemAttemptRecord[]) {
   return [...topicMap.values()]
     .map((topic) => {
       const completionRate = Math.round((topic.cleanSolved / topic.totalSolved) * 100);
-      const averageConfidence = Number((topic.totalConfidence / topic.totalSolved).toFixed(1));
-      const averageTime = Number((topic.totalTime / topic.totalSolved).toFixed(1));
-      const averageAttempts = Number((topic.totalAttempts / topic.totalSolved).toFixed(1));
+      const averageConfidence = roundToOne(topic.totalConfidence / topic.totalSolved);
+      const averageTime = roundToOne(topic.totalTime / topic.totalSolved);
+      const averageAttempts = roundToOne(topic.totalAttempts / topic.totalSolved);
       const masteryScore = Number(
         (
           completionRate * 0.5 +
@@ -181,9 +183,7 @@ function buildAverageTimeByDifficulty(records: ProblemAttemptRecord[]) {
 
     return {
       difficulty,
-      averageTime: entry.totalSolved
-        ? Number((entry.totalTime / entry.totalSolved).toFixed(1))
-        : 0
+      averageTime: entry.totalSolved ? roundToOne(entry.totalTime / entry.totalSolved) : 0
     };
   });
 }
@@ -205,6 +205,8 @@ function buildDifficultyBreakdown(records: ProblemAttemptRecord[]) {
   }));
 }
 
+// Calculate the user's current streak and longest streak
+// based on unique solve dates.
 function buildStreak(records: ProblemAttemptRecord[]) {
   const uniqueDays = [...new Set(records.map((record) => record.solved_at))].sort();
   const activeDates = uniqueDays;
@@ -240,9 +242,11 @@ function buildStreak(records: ProblemAttemptRecord[]) {
   };
 }
 
+// Pick problems that were harder for the user
+// so they can review them again soon.
 function buildReviewSoon(records: ProblemAttemptRecord[]) {
   return records
-    .filter((record) => record.needed_hints || record.attempts >= 3 || record.confidence_score <= 2)
+    .filter(struggledWithProblem)
     .map((record) => ({
       id: record.id,
       title: record.title,
@@ -276,4 +280,20 @@ function diffInDays(earlier: string, later: string) {
 
 function todayLabel() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function struggledWithProblem(record: ProblemAttemptRecord) {
+  return record.needed_hints || record.attempts >= 3 || record.confidence_score <= 2;
+}
+
+function average(values: number[]) {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function roundToOne(value: number) {
+  return Number(value.toFixed(1));
 }

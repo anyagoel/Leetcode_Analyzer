@@ -9,12 +9,14 @@ type TokenPayload = {
   expiresAt: number;
 };
 
+// Hash the user's password before saving it to the database.
 export async function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scrypt(password, salt);
   return `${salt}:${derivedKey}`;
 }
 
+// Compare a login password with the stored password hash.
 export async function verifyPassword(password: string, storedHash: string) {
   const [salt, savedKey] = storedHash.split(":");
 
@@ -26,6 +28,7 @@ export async function verifyPassword(password: string, storedHash: string) {
   return crypto.timingSafeEqual(Buffer.from(savedKey, "hex"), Buffer.from(derivedKey, "hex"));
 }
 
+// Create a simple signed token for future authenticated requests.
 export function createToken(userId: string, email: string) {
   const payload: TokenPayload = {
     userId,
@@ -38,6 +41,7 @@ export function createToken(userId: string, email: string) {
   return `${encodedPayload}.${signature}`;
 }
 
+// Check whether a token is real and whether it has expired.
 export function verifyToken(token: string): TokenPayload | null {
   const [encodedPayload, signature] = token.split(".");
 
@@ -70,4 +74,3 @@ function scrypt(value: string, salt: string) {
     });
   });
 }
-

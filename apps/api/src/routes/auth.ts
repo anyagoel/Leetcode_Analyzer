@@ -6,6 +6,7 @@ import { createToken, hashPassword, verifyPassword } from "../utils/auth.js";
 
 export const authRouter = Router();
 
+// Create a new user account and return a token right away.
 authRouter.post("/register", async (request, response) => {
   const { name, email, password } = request.body as {
     name?: string;
@@ -47,6 +48,7 @@ authRouter.post("/register", async (request, response) => {
   });
 });
 
+// Check the user's email/password and return a token if valid.
 authRouter.post("/login", async (request, response) => {
   const { email, password } = request.body as {
     email?: string;
@@ -81,4 +83,3 @@ authRouter.post("/login", async (request, response) => {
     }
   });
 });
-

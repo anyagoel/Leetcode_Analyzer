@@ -6,8 +6,10 @@ import { pool } from "../db/pool.js";
 
 export const problemsRouter = Router();
 
+// All problem routes require the user to be signed in.
 problemsRouter.use(requireAuth);
 
+// Return all problems logged by the current user, newest first.
 problemsRouter.get("/", async (request: AuthenticatedRequest, response) => {
   const result = await pool.query(
     `
@@ -35,6 +37,7 @@ problemsRouter.get("/", async (request: AuthenticatedRequest, response) => {
   });
 });
 
+// Save a solved problem and the user's attempt details.
 problemsRouter.post("/", async (request: AuthenticatedRequest, response) => {
   const {
     title,
@@ -65,6 +68,7 @@ problemsRouter.post("/", async (request: AuthenticatedRequest, response) => {
 
   const problemId = crypto.randomUUID();
   const attemptId = crypto.randomUUID();
+  // Clean up topic tags so they are stored consistently in lowercase.
   const normalizedTags = (topicTags ?? [])
     .map((tag) => tag.trim().toLowerCase())
     .filter(Boolean);
@@ -118,4 +122,3 @@ problemsRouter.post("/", async (request: AuthenticatedRequest, response) => {
     notes: notes?.trim() ?? ""
   });
 });
-

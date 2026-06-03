@@ -8,6 +8,7 @@ export const analyticsRouter = Router();
 
 analyticsRouter.use(requireAuth);
 
+// Load the user's problem history and turn it into dashboard analytics.
 analyticsRouter.get("/", async (request: AuthenticatedRequest, response) => {
   const result = await pool.query(
     `
@@ -32,4 +33,3 @@ analyticsRouter.get("/", async (request: AuthenticatedRequest, response) => {
 
   response.json(buildAnalytics(result.rows));
 });
-

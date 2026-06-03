@@ -9,6 +9,8 @@ export const recommendationsRouter = Router();
 
 recommendationsRouter.use(requireAuth);
 
+// Build a ranked list of next problems based on weak topics,
+// recency, and difficulty fit.
 recommendationsRouter.get("/", async (request: AuthenticatedRequest, response) => {
   const result = await pool.query(
     `
@@ -35,6 +37,7 @@ recommendationsRouter.get("/", async (request: AuthenticatedRequest, response) =
   const recommendations = problemCatalog
     .filter((problem) => !context.solvedTitles.has(problem.title.toLowerCase()))
     .map((problem) => {
+      // For each candidate problem, estimate how useful it would be next.
       const topicSignals = problem.topicTags.map((topic) => {
         const performance = context.topicPerformanceMap.get(topic);
         const masteryScore = performance?.masteryScore ?? 55;
@@ -51,12 +54,8 @@ recommendationsRouter.get("/", async (request: AuthenticatedRequest, response) =
         };
       });
 
-      const weaknessScore =
-        topicSignals.reduce((sum, signal) => sum + signal.weaknessScore, 0) /
-        Math.max(topicSignals.length, 1);
-      const daysSinceTopicPracticed =
-        topicSignals.reduce((sum, signal) => sum + signal.daysSinceTopicPracticed, 0) /
-        Math.max(topicSignals.length, 1);
+      const weaknessScore = averageSignal(topicSignals, "weaknessScore");
+      const daysSinceTopicPracticed = averageSignal(topicSignals, "daysSinceTopicPracticed");
       const difficultyMatch = getDifficultyMatch(problem.difficulty, context.averageConfidence);
       const reviewPriority = problem.topicTags.some((topic) => context.reviewTopics.has(topic))
         ? 100
@@ -124,4 +123,16 @@ function buildReason(
 
 function daysBetween(earlierMs: number, laterMs: number) {
   return Math.round((laterMs - earlierMs) / (1000 * 60 * 60 * 24));
+}
+
+function averageSignal(
+  topicSignals: Array<{ topic: string; weaknessScore: number; daysSinceTopicPracticed: number }>,
+  key: "weaknessScore" | "daysSinceTopicPracticed"
+) {
+  if (topicSignals.length === 0) {
+    return 0;
+  }
+
+  const total = topicSignals.reduce((sum, signal) => sum + signal[key], 0);
+  return total / topicSignals.length;
 }

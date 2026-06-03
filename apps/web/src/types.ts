@@ -1,5 +1,7 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
+// These types describe the main data shapes shared
+// between the frontend and backend.
 export type User = {
   id: string;
   name: string;

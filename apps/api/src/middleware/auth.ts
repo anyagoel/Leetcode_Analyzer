@@ -6,6 +6,8 @@ export type AuthenticatedRequest = Request & {
   userId?: string;
 };
 
+// This middleware checks for a Bearer token in the request header.
+// If the token is valid, it adds the userId to the request.
 export function requireAuth(
   request: AuthenticatedRequest,
   response: Response,
@@ -29,4 +31,3 @@ export function requireAuth(
   request.userId = payload.userId;
   next();
 }
-

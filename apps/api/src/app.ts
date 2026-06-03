@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health.js";
 import { problemsRouter } from "./routes/problems.js";
 import { recommendationsRouter } from "./routes/recommendations.js";
 
+// This file creates the Express app and connects all route files.
 export const app = express();
 
 app.use(
@@ -15,6 +16,7 @@ app.use(
     origin: env.clientOrigin
   })
 );
+// Let Express read incoming JSON request bodies.
 app.use(express.json());
 
 app.get("/", (_request, response) => {

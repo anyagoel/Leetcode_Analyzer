@@ -4,6 +4,8 @@ export type CatalogProblem = {
   topicTags: string[];
 };
 
+// This is a small built-in list of practice problems
+// that the recommendation system can choose from.
 export const problemCatalog: CatalogProblem[] = [
   { title: "Two Sum", difficulty: "Easy", topicTags: ["arrays", "hash map"] },
   { title: "Valid Parentheses", difficulty: "Easy", topicTags: ["stack", "strings"] },
@@ -22,4 +24,3 @@ export const problemCatalog: CatalogProblem[] = [
   { title: "Edit Distance", difficulty: "Hard", topicTags: ["dp", "strings"] },
   { title: "Alien Dictionary", difficulty: "Hard", topicTags: ["graphs", "topological sort"] }
 ];
-

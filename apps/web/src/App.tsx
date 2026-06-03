@@ -33,6 +33,11 @@ import {
   User
 } from "./types";
 
+// These keys are used to save login info in localStorage
+// so the user stays signed in after refreshing the page.
+const TOKEN_KEY = "cp_token";
+const USER_KEY = "cp_user";
+
 const links = [
   { to: "/", label: "Overview" },
   { to: "/tracker", label: "Tracker" },
@@ -41,7 +46,13 @@ const links = [
 ];
 
 const difficultyOptions: Difficulty[] = ["Easy", "Medium", "Hard"];
+const overviewCards = [
+  ["Track", "Attempts, hints, confidence, and time spent"],
+  ["Analyze", "Topic weakness, streaks, and pace by difficulty"],
+  ["Recommend", "Prioritized practice based on your actual gaps"]
+] as const;
 
+// This is the default form state for adding a solved problem.
 const initialProblemForm: ProblemInput = {
   title: "",
   difficulty: "Medium",
@@ -54,6 +65,46 @@ const initialProblemForm: ProblemInput = {
   notes: ""
 };
 
+// Read the saved user from localStorage when the app first loads.
+function getStoredUser() {
+  const storedUser = localStorage.getItem(USER_KEY);
+  return storedUser ? (JSON.parse(storedUser) as User) : null;
+}
+
+// Save the login token and user info after login or register.
+function saveSession(token: string, user: User) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+// Remove saved login info when the user logs out
+// or when the saved token is no longer valid.
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+function getDifficultyColor(difficulty: Difficulty) {
+  if (difficulty === "Easy") {
+    return "#9dd8d1";
+  }
+
+  if (difficulty === "Medium") {
+    return "#f5ab77";
+  }
+
+  return "#ff8f8a";
+}
+
+// Turn a comma-separated string like "dp, arrays, graphs"
+// into a clean array of topic tags.
+function parseTopicTags(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
 function HomePage() {
   return (
     <section className="panel hero">
@@ -64,28 +115,13 @@ function HomePage() {
         recommendations that push your interview prep forward.
       </p>
       <div className="hero-grid">
-        <article className="mini-card">
-          <span>Track</span>
-          <strong>Attempts, hints, confidence, and time spent</strong>
-        </article>
-        <article className="mini-card">
-          <span>Analyze</span>
-          <strong>Topic weakness, streaks, and pace by difficulty</strong>
-        </article>
-        <article className="mini-card">
-          <span>Recommend</span>
-          <strong>Prioritized practice based on your actual gaps</strong>
-        </article>
+        {overviewCards.map(([label, text]) => (
+          <article className="mini-card" key={label}>
+            <span>{label}</span>
+            <strong>{text}</strong>
+          </article>
+        ))}
       </div>
-    </section>
-  );
-}
-
-function PlaceholderPage(props: { title: string; body: string }) {
-  return (
-    <section className="panel">
-      <h2>{props.title}</h2>
-      <p>{props.body}</p>
     </section>
   );
 }
@@ -100,6 +136,7 @@ function LockedPage(props: { title: string; body: string }) {
   );
 }
 
+// This page handles both authentication and logging solved problems.
 function TrackerPage(props: {
   token: string | null;
   user: User | null;
@@ -116,6 +153,7 @@ function TrackerPage(props: {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   async function handleProblemSubmit(event: FormEvent<HTMLFormElement>) {
+    // Prevent a page refresh and send the new problem to the backend.
     event.preventDefault();
     setSubmissionError(null);
 
@@ -248,10 +286,7 @@ function TrackerPage(props: {
                 onChange={(event) =>
                   setProblemForm({
                     ...problemForm,
-                    topicTags: event.target.value
-                      .split(",")
-                      .map((tag) => tag.trim())
-                      .filter(Boolean)
+                    topicTags: parseTopicTags(event.target.value)
                   })
                 }
                 placeholder="dp, arrays, binary search"
@@ -380,6 +415,7 @@ function TrackerPage(props: {
   );
 }
 
+// This page shows charts and summaries based on the user's solve history.
 function AnalyticsPage(props: { analytics: AnalyticsPayload | null; token: string | null }) {
   if (!props.token) {
     return (
@@ -450,13 +486,7 @@ function AnalyticsPage(props: { analytics: AnalyticsPayload | null; token: strin
                   {props.analytics.averageTimeByDifficulty.map((entry) => (
                     <Cell
                       key={entry.difficulty}
-                      fill={
-                        entry.difficulty === "Easy"
-                          ? "#9dd8d1"
-                          : entry.difficulty === "Medium"
-                            ? "#f5ab77"
-                            : "#ff8f8a"
-                      }
+                      fill={getDifficultyColor(entry.difficulty)}
                     />
                   ))}
                 </Bar>
@@ -498,13 +528,7 @@ function AnalyticsPage(props: { analytics: AnalyticsPayload | null; token: strin
                   {props.analytics.difficultyBreakdown.map((entry) => (
                     <Cell
                       key={entry.difficulty}
-                      fill={
-                        entry.difficulty === "Easy"
-                          ? "#9dd8d1"
-                          : entry.difficulty === "Medium"
-                            ? "#f5ab77"
-                            : "#ff8f8a"
-                      }
+                      fill={getDifficultyColor(entry.difficulty)}
                     />
                   ))}
                 </Pie>
@@ -567,6 +591,7 @@ function AnalyticsPage(props: { analytics: AnalyticsPayload | null; token: strin
   );
 }
 
+// This page ranks which problems the user should solve next.
 function RecommendationsPage(props: {
   token: string | null;
   recommendations: Recommendation[];
@@ -628,11 +653,8 @@ function RecommendationsPage(props: {
 }
 
 export function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("cp_token"));
-  const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem("cp_user");
-    return storedUser ? (JSON.parse(storedUser) as User) : null;
-  });
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [user, setUser] = useState<User | null>(getStoredUser);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authError, setAuthError] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
@@ -640,6 +662,7 @@ export function App() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
   useEffect(() => {
+    // Whenever the token changes, load the user's saved problems.
     if (!token) {
       setProblems([]);
       return;
@@ -650,12 +673,13 @@ export function App() {
       .catch(() => {
         setToken(null);
         setUser(null);
-        localStorage.removeItem("cp_token");
-        localStorage.removeItem("cp_user");
+        clearSession();
       });
   }, [token]);
 
   useEffect(() => {
+    // Reload analytics and recommendations whenever the user logs in
+    // or adds more solved problems.
     if (!token) {
       setAnalytics(null);
       setRecommendations([]);
@@ -667,6 +691,7 @@ export function App() {
   }, [token, problems.length]);
 
   async function handleAuthenticate(payload: { name?: string; email: string; password: string }) {
+    // Handles both login and register depending on the current mode.
     setAuthError(null);
 
     try {
@@ -681,14 +706,14 @@ export function App() {
 
       setToken(response.token);
       setUser(response.user);
-      localStorage.setItem("cp_token", response.token);
-      localStorage.setItem("cp_user", JSON.stringify(response.user));
+      saveSession(response.token, response.user);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to authenticate.");
     }
   }
 
   async function handleCreateProblem(input: ProblemInput) {
+    // Save a new problem and add it to the page right away.
     if (!token) {
       throw new Error("You need to sign in first.");
     }
@@ -701,8 +726,7 @@ export function App() {
     setToken(null);
     setUser(null);
     setProblems([]);
-    localStorage.removeItem("cp_token");
-    localStorage.removeItem("cp_user");
+    clearSession();
   }
 
   return (

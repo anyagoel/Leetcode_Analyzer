@@ -1,3 +1,4 @@
+-- users stores login/account information
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
@@ -6,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- problems stores general problem info like title, difficulty, and tags
 CREATE TABLE IF NOT EXISTS problems (
   id UUID PRIMARY KEY,
   title TEXT NOT NULL,
@@ -15,6 +17,7 @@ CREATE TABLE IF NOT EXISTS problems (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- problem_attempts stores each user's solve record for a problem
 CREATE TABLE IF NOT EXISTS problem_attempts (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -31,4 +34,3 @@ CREATE TABLE IF NOT EXISTS problem_attempts (
 CREATE INDEX IF NOT EXISTS idx_problem_attempts_user_id ON problem_attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_problem_attempts_solved_at ON problem_attempts(solved_at);
 CREATE INDEX IF NOT EXISTS idx_problems_topic_tags ON problems USING GIN (topic_tags);
-
