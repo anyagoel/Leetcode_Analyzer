@@ -2,7 +2,9 @@ import cors from "cors";
 import express from "express";
 
 import { env } from "./config/env.js";
+import { authRouter } from "./routes/auth.js";
 import { healthRouter } from "./routes/health.js";
+import { problemsRouter } from "./routes/problems.js";
 
 export const app = express();
 
@@ -21,4 +23,5 @@ app.get("/", (_request, response) => {
 });
 
 app.use("/health", healthRouter);
-
+app.use("/api/auth", authRouter);
+app.use("/api/problems", problemsRouter);
