@@ -1,4 +1,4 @@
-import { AuthPayload, ProblemInput, ProblemRecord } from "../types";
+import { AnalyticsPayload, AuthPayload, ProblemInput, ProblemRecord, Recommendation } from "../types";
 
 const API_BASE_URL = "http://localhost:4000";
 
@@ -53,3 +53,20 @@ export function createProblem(token: string, input: ProblemInput) {
   });
 }
 
+export function fetchAnalytics(token: string) {
+  return request<AnalyticsPayload>("/api/analytics", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function fetchRecommendations(token: string) {
+  const response = await request<{ items: Recommendation[] }>("/api/recommendations", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return response.items;
+}

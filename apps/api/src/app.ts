@@ -1,10 +1,12 @@
 import cors from "cors";
 import express from "express";
 
+import { analyticsRouter } from "./routes/analytics.js";
 import { env } from "./config/env.js";
 import { authRouter } from "./routes/auth.js";
 import { healthRouter } from "./routes/health.js";
 import { problemsRouter } from "./routes/problems.js";
+import { recommendationsRouter } from "./routes/recommendations.js";
 
 export const app = express();
 
@@ -25,3 +27,5 @@ app.get("/", (_request, response) => {
 app.use("/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/problems", problemsRouter);
+app.use("/api/analytics", analyticsRouter);
+app.use("/api/recommendations", recommendationsRouter);

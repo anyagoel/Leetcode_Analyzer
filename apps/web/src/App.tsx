@@ -1,8 +1,37 @@
 import { FormEvent, useEffect, useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
 
-import { createProblem, fetchProblems, login, register } from "./lib/api";
-import { AuthPayload, Difficulty, ProblemInput, ProblemRecord, User } from "./types";
+import {
+  createProblem,
+  fetchAnalytics,
+  fetchProblems,
+  fetchRecommendations,
+  login,
+  register
+} from "./lib/api";
+import {
+  AnalyticsPayload,
+  AuthPayload,
+  Difficulty,
+  ProblemInput,
+  ProblemRecord,
+  Recommendation,
+  User
+} from "./types";
 
 const links = [
   { to: "/", label: "Overview" },
@@ -56,6 +85,16 @@ function PlaceholderPage(props: { title: string; body: string }) {
   return (
     <section className="panel">
       <h2>{props.title}</h2>
+      <p>{props.body}</p>
+    </section>
+  );
+}
+
+function LockedPage(props: { title: string; body: string }) {
+  return (
+    <section className="panel">
+      <p className="eyebrow">{props.title}</p>
+      <h2>Sign in to unlock your personalized insights.</h2>
       <p>{props.body}</p>
     </section>
   );
@@ -341,6 +380,253 @@ function TrackerPage(props: {
   );
 }
 
+function AnalyticsPage(props: { analytics: AnalyticsPayload | null; token: string | null }) {
+  if (!props.token) {
+    return (
+      <LockedPage body="Analytics depend on your solve history, so the dashboard appears after you log in and add problems." title="Analytics dashboard" />
+    );
+  }
+
+  if (!props.analytics) {
+    return (
+      <section className="panel">
+        <h2>Analytics are loading...</h2>
+      </section>
+    );
+  }
+
+  return (
+    <section className="stack">
+      <div className="stats-grid">
+        <article className="panel stat-card">
+          <p className="eyebrow">Solved</p>
+          <h2>{props.analytics.totals.solved}</h2>
+          <p>Total logged problems</p>
+        </article>
+        <article className="panel stat-card">
+          <p className="eyebrow">Current streak</p>
+          <h2>{props.analytics.totals.currentStreak}</h2>
+          <p>Consecutive active days</p>
+        </article>
+        <article className="panel stat-card">
+          <p className="eyebrow">Longest streak</p>
+          <h2>{props.analytics.totals.longestStreak}</h2>
+          <p>Best run so far</p>
+        </article>
+      </div>
+
+      <div className="two-column">
+        <article className="panel chart-panel">
+          <div className="panel-title-row">
+            <div>
+              <p className="eyebrow">Solve volume</p>
+              <h3>Problems solved per week</h3>
+            </div>
+          </div>
+          <div className="chart-shell">
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={props.analytics.weeklySolves}>
+                <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+                <XAxis dataKey="week" stroke="#c9c5bb" />
+                <YAxis stroke="#c9c5bb" allowDecimals={false} />
+                <Tooltip />
+                <Line type="monotone" dataKey="solved" stroke="#f5ab77" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className="panel chart-panel">
+          <p className="eyebrow">Time profile</p>
+          <h3>Average time by difficulty</h3>
+          <div className="chart-shell">
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={props.analytics.averageTimeByDifficulty}>
+                <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
+                <XAxis dataKey="difficulty" stroke="#c9c5bb" />
+                <YAxis stroke="#c9c5bb" />
+                <Tooltip />
+                <Bar dataKey="averageTime" radius={[10, 10, 0, 0]}>
+                  {props.analytics.averageTimeByDifficulty.map((entry) => (
+                    <Cell
+                      key={entry.difficulty}
+                      fill={
+                        entry.difficulty === "Easy"
+                          ? "#9dd8d1"
+                          : entry.difficulty === "Medium"
+                            ? "#f5ab77"
+                            : "#ff8f8a"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+      </div>
+
+      <div className="two-column">
+        <article className="panel chart-panel">
+          <p className="eyebrow">Topic mastery</p>
+          <h3>Completion rate by topic</h3>
+          <div className="chart-shell">
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={props.analytics.topicPerformance.slice(0, 8)} layout="vertical">
+                <CartesianGrid stroke="rgba(255,255,255,0.08)" horizontal={false} />
+                <XAxis type="number" stroke="#c9c5bb" />
+                <YAxis dataKey="topic" type="category" stroke="#c9c5bb" width={100} />
+                <Tooltip />
+                <Bar dataKey="completionRate" fill="#9dd8d1" radius={[0, 10, 10, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className="panel chart-panel">
+          <p className="eyebrow">Difficulty mix</p>
+          <h3>Easy / Medium / Hard breakdown</h3>
+          <div className="chart-shell">
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart>
+                <Pie
+                  data={props.analytics.difficultyBreakdown}
+                  dataKey="solved"
+                  nameKey="difficulty"
+                  outerRadius={110}
+                >
+                  {props.analytics.difficultyBreakdown.map((entry) => (
+                    <Cell
+                      key={entry.difficulty}
+                      fill={
+                        entry.difficulty === "Easy"
+                          ? "#9dd8d1"
+                          : entry.difficulty === "Medium"
+                            ? "#f5ab77"
+                            : "#ff8f8a"
+                      }
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+      </div>
+
+      <div className="two-column">
+        <article className="panel">
+          <p className="eyebrow">Weak spots</p>
+          <h3>Weakest topics</h3>
+          <div className="problem-list">
+            {props.analytics.weakestTopics.map((topic) => (
+              <article className="problem-card" key={topic.topic}>
+                <div className="problem-card-top">
+                  <h4>{topic.topic}</h4>
+                  <span className="confidence-pill">Mastery {topic.masteryScore}</span>
+                </div>
+                <p>
+                  {topic.completionRate}% clean solves | {topic.averageConfidence}/5 confidence
+                </p>
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <p className="eyebrow">Review queue</p>
+          <h3>Review soon</h3>
+          <div className="problem-list">
+            {props.analytics.reviewSoon.length === 0 ? (
+              <p className="empty-state">Nothing urgent to review right now.</p>
+            ) : (
+              props.analytics.reviewSoon.map((problem) => (
+                <article className="problem-card" key={problem.id}>
+                  <div className="problem-card-top">
+                    <h4>{problem.title}</h4>
+                    <span className="confidence-pill">Priority {problem.priorityScore}</span>
+                  </div>
+                  <p>
+                    {problem.difficulty} | {problem.solvedAt}
+                  </p>
+                  <div className="tag-row">
+                    {problem.topicTags.map((tag) => (
+                      <span className="tag" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function RecommendationsPage(props: {
+  token: string | null;
+  recommendations: Recommendation[];
+}) {
+  if (!props.token) {
+    return (
+      <LockedPage
+        title="Recommendation system"
+        body="Recommendations use weakness, recency, review priority, and difficulty fit once you have solve history."
+      />
+    );
+  }
+
+  return (
+    <section className="stack">
+      <article className="panel">
+        <p className="eyebrow">What should I solve next?</p>
+        <h2>Top 5 practice recommendations</h2>
+        <p className="hero-copy">
+          Weighted by weakness score, days since the topic was practiced, difficulty
+          progression, and review priority.
+        </p>
+      </article>
+      <div className="problem-list">
+        {props.recommendations.length === 0 ? (
+          <article className="panel">
+            <h3>Add a bit more history to unlock recommendations.</h3>
+            <p>
+              Once you log a few problems, this page will rank what to tackle next using
+              weakness, recency, difficulty fit, and review signals.
+            </p>
+          </article>
+        ) : (
+          props.recommendations.map((problem, index) => (
+            <article className="panel recommendation-card" key={problem.title}>
+              <div className="problem-card-top">
+                <div>
+                  <p className="eyebrow">Recommendation {index + 1}</p>
+                  <h3>{problem.title}</h3>
+                  <p>
+                    {problem.difficulty} | score {problem.score}
+                  </p>
+                </div>
+                <div className="tag-row">
+                  {problem.topicTags.map((tag) => (
+                    <span className="tag" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <p>{problem.reason}</p>
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("cp_token"));
   const [user, setUser] = useState<User | null>(() => {
@@ -350,6 +636,8 @@ export function App() {
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authError, setAuthError] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemRecord[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
   useEffect(() => {
     if (!token) {
@@ -366,6 +654,17 @@ export function App() {
         localStorage.removeItem("cp_user");
       });
   }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setAnalytics(null);
+      setRecommendations([]);
+      return;
+    }
+
+    fetchAnalytics(token).then(setAnalytics).catch(() => setAnalytics(null));
+    fetchRecommendations(token).then(setRecommendations).catch(() => setRecommendations([]));
+  }, [token, problems.length]);
 
   async function handleAuthenticate(payload: { name?: string; email: string; password: string }) {
     setAuthError(null);
@@ -449,21 +748,11 @@ export function App() {
           />
           <Route
             path="/analytics"
-            element={
-              <PlaceholderPage
-                title="Analytics Dashboard"
-                body="Visualize streaks, topic performance, weekly solve volume, and difficulty trends."
-              />
-            }
+            element={<AnalyticsPage analytics={analytics} token={token} />}
           />
           <Route
             path="/recommendations"
-            element={
-              <PlaceholderPage
-                title="Recommendations"
-                body="Get a ranked list of practice targets based on weakness, recency gaps, and difficulty progression."
-              />
-            }
+            element={<RecommendationsPage recommendations={recommendations} token={token} />}
           />
         </Routes>
       </main>
